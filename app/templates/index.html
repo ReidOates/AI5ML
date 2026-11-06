@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Titanic Survival Prediction</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header>
+            <p class="subtitle">MACHINE LEARNING PROJECT</p>
+            <h1>Titanic Survival Prediction</h1>
+            <p class="description">
+                Prediksi kemungkinan keselamatan penumpang
+                menggunakan algoritma Decision Tree.
+            </p>
+        </header>
+
+        <main class="card">
+
+            <h2>Data Penumpang</h2>
+
+            <form method="POST">
+
+                <div class="form-group">
+                    <label for="pclass">Kelas Penumpang</label>
+                    <select id="pclass" name="pclass" required>
+                        <option value="1">Kelas 1</option>
+                        <option value="2" selected>Kelas 2</option>
+                        <option value="3">Kelas 3</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="sex">Jenis Kelamin</label>
+                    <select id="sex" name="sex" required>
+                        <option value="male">Laki-laki</option>
+                        <option value="female">Perempuan</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="age">Usia</label>
+                    <input
+                        type="number"
+                        id="age"
+                        name="age"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="Kosongkan jika tidak diketahui"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="sibsp">Jumlah Saudara/Pasangan</label>
+                    <input
+                        type="number"
+                        id="sibsp"
+                        name="sibsp"
+                        min="0"
+                        value="0"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="parch">Jumlah Orang Tua/Anak</label>
+                    <input
+                        type="number"
+                        id="parch"
+                        name="parch"
+                        min="0"
+                        value="0"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="fare">Tarif Tiket</label>
+                    <input
+                        type="number"
+                        id="fare"
+                        name="fare"
+                        min="0"
+                        step="0.01"
+                        placeholder="Contoh: 32.50"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="embarked">Pelabuhan Keberangkatan</label>
+                    <select id="embarked" name="embarked">
+                        <option value="">Gunakan nilai modus</option>
+                        <option value="C">Cherbourg (C)</option>
+                        <option value="Q">Queenstown (Q)</option>
+                        <option value="S">Southampton (S)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="model">Model Decision Tree</label>
+                    <select id="model" name="model" required>
+                        <option value="model_A"
+                            {% if selected_model == "model_A" %}selected{% endif %}>
+                            Model A - Unpruned
+                        </option>
+
+                        <option value="model_B"
+                            {% if selected_model == "model_B" %}selected{% endif %}>
+                            Model B - Pruned
+                        </option>
+                    </select>
+                </div>
+
+                <button type="submit">
+                    Prediksi Keselamatan
+                </button>
+
+            </form>
+
+            {% if error %}
+                <div class="result danger">
+                    <h3>Input Tidak Valid</h3>
+                    <p>{{ error }}</p>
+                </div>
+            {% endif %}
+
+            {% if prediction %}
+                <div class="result {{ prediction.status }}">
+                    <h3>Hasil Prediksi</h3>
+                    <h2>{{ prediction.class }}</h2>
+                    <p>{{ prediction.description }}</p>
+                </div>
+            {% endif %}
+
+        </main>
+
+        <footer>
+            <p>
+                Titanic Decision Tree |
+                Model A (Unpruned) dan Model B (Pruned)
+            </p>
+        </footer>
+
+    </div>
+
+</body>
+</html>
