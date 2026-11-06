@@ -7,20 +7,23 @@ import pandas as pd
 from flask import Flask, render_template, request
 
 
-# ==========================================
+# ==================================================
 # 1. KONFIGURASI APLIKASI
-# ==========================================
-
-app = Flask(__name__)
+# ==================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 MODEL_PATH = BASE_DIR / "models" / "titanic_artifacts.joblib"
 
+app = Flask(
+    __name__,
+    static_folder=str(BASE_DIR / "public"),
+    static_url_path=""
+)
 
-# ==========================================
-# 2. MEMUAT MODEL
-# ==========================================
+
+# ==================================================
+# 2. MEMUAT MODEL DAN PREPROCESSING
+# ==================================================
 
 if not MODEL_PATH.exists():
     raise FileNotFoundError(
@@ -34,122 +37,192 @@ model_B = artifacts["model_B"]
 
 preprocessing = artifacts["preprocessing"]
 
-feature_columns = preprocessing["feature_columns"]
-
 age_median = preprocessing["age_median"]
 embarked_mode = preprocessing["embarked_mode"]
+feature_columns = preprocessing["feature_columns"]
 
 
-# ==========================================
+# ==================================================
 # 3. HALAMAN UTAMA
-# ==========================================
+# ==================================================
 
 @app.route("/", methods=["GET", "POST"])
 def index():
 
     prediction = None
-    selected_model = "model_A"
     error = None
+
+    selected_model = "model_A"
 
     if request.method == "POST":
 
-        try:
-            # Mengambil input dari formulir
-            pclass = int(request.form["pclass"])
-            sex = request.form["sex"]
+        selected_model = request.form.get(
+            "model", "model_A"
+        )
 
+        try:
+
+            # ======================================
+            # 4. MENGAMBIL INPUT FORMULIR
+            # ======================================
+
+            pclass = int(request.form.get("pclass"))
+            sex = request.form.get("sex")
             age_input = request.form.get("age", "").strip()
 
-            sibsp = int(request.form["sibsp"])
-            parch = int(request.form["parch"])
-            fare = float(request.form["fare"])
+            sibsp = int(request.form.get("sibsp"))
+            parch = int(request.form.get("parch"))
 
-            embarked = request.form.get("embarked", "").strip()
+            fare = float(request.form.get("fare"))
 
-            selected_model = request.form["model"]
+            embarked = request.form.get(
+                "embarked", ""
+            ).strip().upper()
 
-            # Validasi input
+            # ======================================
+            # 5. VALIDASI INPUT
+            # ======================================
+
             if pclass not in [1, 2, 3]:
-                raise ValueError("Kelas penumpang tidak valid.")
+                raise ValueError(
+                    "Kelas penumpang harus 1, 2, atau 3."
+                )
 
             if sex not in ["male", "female"]:
-                raise ValueError("Jenis kelamin tidak valid.")
+                raise ValueError(
+                    "Jenis kelamin tidak valid."
+                )
 
-            if sibsp < 0 or parch < 0 or fare < 0:
-                raise ValueError("Jumlah keluarga dan tarif tidak boleh negatif.")
+            if sibsp < 0 or parch < 0:
+                raise ValueError(
+                    "Jumlah anggota keluarga tidak boleh negatif."
+                )
+
+            if fare < 0:
+                raise ValueError(
+                    "Tarif tiket tidak boleh negatif."
+                )
 
             if age_input == "":
-                age = age_median
+                age = float(age_median)
             else:
                 age = float(age_input)
 
-            if age < 0:
-                raise ValueError("Usia tidak boleh negatif.")
+            if age < 0 or age > 100:
+                raise ValueError(
+                    "Usia harus berada antara 0 sampai 100 tahun."
+                )
 
             if embarked == "":
                 embarked = embarked_mode
 
             if embarked not in ["C", "Q", "S"]:
-                raise ValueError("Pelabuhan keberangkatan tidak valid.")
+                raise ValueError(
+                    "Pelabuhan harus C, Q, atau S."
+                )
 
-            # Membuat data input
-            input_data = pd.DataFrame([{
+            if selected_model not in ["model_A", "model_B"]:
+                raise ValueError(
+                    "Pilihan model tidak valid."
+                )
+
+            # ======================================
+            # 6. ONE-HOT ENCODING MANUAL
+            # ======================================
+
+            input_features = {
                 "Pclass": pclass,
                 "Age": age,
                 "SibSp": sibsp,
                 "Parch": parch,
                 "Fare": fare,
+
                 "Sex_female": 1 if sex == "female" else 0,
                 "Sex_male": 1 if sex == "male" else 0,
+
                 "Embarked_C": 1 if embarked == "C" else 0,
                 "Embarked_Q": 1 if embarked == "Q" else 0,
                 "Embarked_S": 1 if embarked == "S" else 0
-            }])
+            }
 
-            # Menyesuaikan urutan kolom dengan data training
-            input_data = input_data.reindex(
+            # Membuat DataFrame sesuai urutan fitur training
+            input_data = pd.DataFrame(
+                [input_features]
+            ).reindex(
                 columns=feature_columns,
                 fill_value=0
             )
 
-            # Memilih model
+            # ======================================
+            # 7. MEMILIH MODEL
+            # ======================================
+
             if selected_model == "model_A":
                 selected_model_object = model_A
-            elif selected_model == "model_B":
+                model_name = "Model A - Unpruned"
+
+            else:
                 selected_model_object = model_B
-            else:
-                raise ValueError("Pilihan model tidak valid.")
+                model_name = "Model B - Pruned"
 
-            # Melakukan prediksi
-            result = selected_model_object.predict(input_data)[0]
+            # ======================================
+            # 8. MELAKUKAN PREDIKSI
+            # ======================================
 
-            if int(result) == 1:
+            result = int(
+                selected_model_object.predict(input_data)[0]
+            )
+
+            # ======================================
+            # 9. MENENTUKAN HASIL PREDIKSI
+            # ======================================
+
+            if result == 1:
+
                 prediction = {
-                    "class": "Selamat",
-                    "description": "Model memprediksi penumpang selamat.",
-                    "status": "success"
-                }
-            else:
-                prediction = {
-                    "class": "Tidak Selamat",
-                    "description": "Model memprediksi penumpang tidak selamat.",
-                    "status": "danger"
+                    "class": "SELAMAT",
+                    "status": "success",
+                    "description": (
+                        "Model memprediksi bahwa penumpang "
+                        "memiliki status selamat."
+                    ),
+                    "model": model_name
                 }
 
-        except (ValueError, KeyError, TypeError) as e:
+            else:
+
+                prediction = {
+                    "class": "TIDAK SELAMAT",
+                    "status": "danger",
+                    "description": (
+                        "Model memprediksi bahwa penumpang "
+                        "memiliki status tidak selamat."
+                    ),
+                    "model": model_name
+                }
+
+        except (ValueError, TypeError, KeyError) as e:
+
             error = str(e)
+
+        except Exception:
+
+            error = (
+                "Terjadi kesalahan saat melakukan prediksi. "
+                "Periksa input dan konfigurasi model."
+            )
 
     return render_template(
         "index.html",
         prediction=prediction,
-        selected_model=selected_model,
-        error=error
+        error=error,
+        selected_model=selected_model
     )
 
 
-# ==========================================
-# 4. MENJALANKAN APLIKASI LOKAL
-# ==========================================
+# ==================================================
+# 10. MENJALANKAN APLIKASI SECARA LOKAL
+# ==================================================
 
 if __name__ == "__main__":
     app.run(debug=True)

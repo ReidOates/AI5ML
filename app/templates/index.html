@@ -7,8 +7,7 @@
 
     <title>Titanic Survival Prediction</title>
 
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
@@ -143,6 +142,9 @@
                 </div>
             {% endif %}
 
+            <p>Model yang digunakan: {{ prediction.model }}</p>
+
+            
         </main>
 
         <footer>
